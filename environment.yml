@@ -1,0 +1,9 @@
+name: blackfriday
+channels:
+  - defaults
+dependencies:
+  - python=3.9
+  - pandas=1.4.3
+  - scikit-learn=1.1.1
+  - matplotlib=3.5.1
+
