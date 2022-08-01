@@ -22,10 +22,13 @@ category
 
 columns:
 gender              - cat
-age                 - ordinal
 city_category       - cat
-stay_years          - ordinal
 marital_status      - cat
+occupation          - cat
+
+age                 - ordinal
+stay_years          - ordinal
+
 product_category_{} - cat
 cats_filled         - ordinal
 
@@ -36,9 +39,13 @@ among the ordinal features, levels don't seem to split purchase cleanly. looking
 ** generally, the more categories are filled in, the higher the typical purchase amount
 
 ** product_category_1 is very discriminative - certain categories typically accumulate very low/high purchase amounts
-consider placing 19, 20, 13, 12, 4, 18, 11, 5, 8 with a macro label (A) and the remeinder with (B) - would still capture a lot of the variance without having 20 or so levels
+not a lot of point in including category 2 and 3, don't have nearly as much variance across the labels compared with 1
+consider placing 19, 20, 13, 12, 4, 18, 11, 5, 8 with a macro label (A) and the remeinder with (B) - would still capture a lot of the variance without having 20 or so levels, wouldn't be as much one-hot sparsity
+target encoding? leave-one-out target encoding? frequency encoding?
 
 assuming in general that the test dataset will feature the same number/span of categorical labels as training...
+
+stay_years and age have barely any capacity to split up purchase
 """
 
 
@@ -54,6 +61,7 @@ clean["cats_filled"] = 3 - clean[['product_category_1',
                                   'product_category_2', 
                                   'product_category_3']].isna().sum(axis=1)
 
+#note: cats_filled is already ordinal
 ordinals = {"stay_years":["0", "1", "2", "3", "4+"],
             "age":["0-17", "18-25", "26-35", "36-45", "46-50", "51-55", "55+"]}
 
@@ -87,8 +95,11 @@ ax.legend()
 
 
 #%% boxplots for medium number of categories
-fig, ax = median_ordered_boxplots(clean, field_group="product_category_1", do_sort=True)
+_, fig, ax = median_ordered_boxplots(clean, field_group="product_category_1", do_sort=True)
+_, fig, ax = median_ordered_boxplots(clean, field_group="occupation", do_sort=True)
 
 
-#%% ordinal level comparison 
-fig, ax = median_ordered_boxplots(clean, field_group="cats_filled")
+#%% ordinal level comparisons
+_, fig, ax = median_ordered_boxplots(clean, field_group="cats_filled")
+_, fig, ax = median_ordered_boxplots(clean, field_group="ord_stay_years")
+_, fig, ax = median_ordered_boxplots(clean, field_group="ord_age")

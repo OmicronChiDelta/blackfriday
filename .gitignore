@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# mlflow tracking done here for convenience, but not version controlled
+mlflow/**
+mlruns/**
