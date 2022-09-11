@@ -4,6 +4,7 @@ Created on Mon Aug  1 11:52:45 2022
 
 @author: Alex White
 """
+import pandas as pd
 import numpy as np
 from scipy.stats import gaussian_kde
 import matplotlib.pyplot as plt
@@ -101,9 +102,10 @@ class FrequencyEncoder():
             X[f] = X[f].replace(freq_table)
         return X
     
+    
 class MeanEncoder():
     """
-    replace categorical fields of interest mean within each label
+    replace categorical fields of interest with mean purchase price within each label
     """
     def __init__(self, fields):
         self.fields = fields
@@ -117,7 +119,24 @@ class MeanEncoder():
             mean_table = X.groupby(f).agg({"purchase":"mean"})["purchase"].to_dict()
             X[f] = X[f].replace(mean_table)
         return X
-       
+
+
+class CustomOneHot():
+    """
+    Use dataframe-friendly way of generating one-hot-encoded categorical fields
+    """
+    def __init__(self, fields):
+        self.fields = fields
+    
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, X):
+        for f in self.fields:
+            one_hot = pd.get_dummies(X[f], prefix=f+"_")
+            X = pd.concat([X, one_hot], axis=1)
+        return X
+    
     
 class DropGarbage():
     """
