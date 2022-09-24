@@ -95,6 +95,7 @@ ax.legend()
 
 
 #%% boxplots for medium number of categories
+_, fig, ax = median_ordered_boxplots(clean, field_group="product_id", do_sort=True)
 _, fig, ax = median_ordered_boxplots(clean, field_group="product_category_1", do_sort=True)
 _, fig, ax = median_ordered_boxplots(clean, field_group="occupation", do_sort=True)
 

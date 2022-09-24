@@ -51,6 +51,20 @@ def median_ordered_boxplots(df, field_group, field_vis="purchase", do_sort=False
     return box_data, fig, ax
 
 
+def engineer_frame(df):
+    df.columns = [c.lower() for c in df.columns]
+    df = df[["gender", 
+             "marital_status",
+             "city_category",
+             "product_category_1",
+             "product_category_2",
+             "product_category_3",
+             "purchase"]].reset_index(drop=True)
+    df.reset_index(inplace=True)
+    df.rename({"index":"row_idx"}, axis=1, inplace=True)
+    return df
+
+
 class Regroup():
     """
     within a field of interest, bag up members into coarser groups
