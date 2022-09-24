@@ -36,16 +36,20 @@ def get_envelope(df, field_vis="purchase", precision=100):
     return x_vals, dens
 
 
-def median_ordered_boxplots(df, field_group, field_vis="purchase", do_sort=False):
+def median_ordered_boxplots(df, field_group, field_vis="purchase", do_sort=False, minimal_vis=False):
     """
     boxplots of group data, optionally ordered ascending by group median
-    """
+    """        
     box_data = {c[0]:c[1][field_vis].dropna().values.tolist() for c in df.groupby(field_group)}
     if do_sort:
         box_data = {key: value for key, value in sorted(box_data.items(), key=lambda item: np.median(item[1]))}
+        
     fig, ax = plt.subplots()
-    ax.boxplot(box_data.values())
-    ax.set_xticklabels(box_data.keys(), rotation=90)
+    if minimal_vis:
+        ax.plot([np.median(i) for i in box_data.values()])
+    else:
+        ax.boxplot(box_data.values())
+        ax.set_xticklabels(box_data.keys(), rotation=90)
     ax.set_xlabel(field_group)
     ax.set_ylabel(field_vis)
     return box_data, fig, ax
@@ -53,13 +57,6 @@ def median_ordered_boxplots(df, field_group, field_vis="purchase", do_sort=False
 
 def engineer_frame(df):
     df.columns = [c.lower() for c in df.columns]
-    df = df[["gender", 
-             "marital_status",
-             "city_category",
-             "product_category_1",
-             "product_category_2",
-             "product_category_3",
-             "purchase"]].reset_index(drop=True)
     df.reset_index(inplace=True)
     df.rename({"index":"row_idx"}, axis=1, inplace=True)
     return df

@@ -7,6 +7,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV, KFold, train_test_split
 from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
 
 path_utils = os.path.join(os.getcwd(), "utilities")
 if path_utils not in sys.path:
@@ -36,6 +37,7 @@ folder = KFold(n_splits=n_folds,
 #%%
 data = pd.read_csv("./data/train.csv")
 data = engineer_frame(data)
+raw_fields = data.columns.to_list()
 
 #siphon off a completely independent test set
 test = data.sample(frac=test_frac, replace=False, random_state=seed)
@@ -44,7 +46,10 @@ train = data.loc[~data["row_idx"].isin(test["row_idx"].values)].reset_index(drop
 
 #%%
 #verify that the eda we did is not working just because of test leakage
-_, fig, ax = median_ordered_boxplots(train, field_group="product_category_1", do_sort=True)
+plt.close("all")
+#_, fig, ax = median_ordered_boxplots(train, field_group="product_category_1", do_sort=True)
+_, fig, ax = median_ordered_boxplots(train, field_group="product_id", do_sort=True, minimal_vis=True)
+
 
 
 #%%
@@ -55,10 +60,7 @@ pcat1_groups = {"A":low_group,
                 "B":[c for c in train["product_category_1"].unique() if c not in low_group]}
 
 #features
-X_train = train.drop(["purchase"], axis=1).reset_index(drop=True)
 y_train = train[["purchase"]].reset_index(drop=True)
-
-X_test = test.drop(["purchase"], axis=1).reset_index(drop=True)
 y_test = test[["purchase"]].reset_index(drop=True)
 
 
@@ -71,18 +73,14 @@ pipe = Pipeline([("cats_filled", CreateCatsFilled())
                                                          "marital_status",
                                                          "city_category",
                                                          "product_category_1"]))
-                ,("drop_garbage", DropGarbage(fields=["product_category_2", 
-                                                      "product_category_3",
-                                                      "gender",
-                                                      "marital_status",
-                                                      "city_category",
-                                                      "product_category_1",
-                                                      "row_idx"]))
+                ,("drop_garbage", DropGarbage(fields=[c.lower() for c in raw_fields]))
                 ,("regressor", RandomForestRegressor(n_estimators=50,
-                                                     random_state=seed, 
-                                                     n_jobs=-1))])
+                                                      random_state=seed, 
+                                                      n_jobs=-1))
+                ])
+
 #verify steps work
-#op = pipe.fit_transform(X)
+# op = pipe.fit_transform(train)
 
 
 #%% 
@@ -104,7 +102,7 @@ gs = GridSearchCV(pipe,
                   verbose=4,
                   scoring="neg_root_mean_squared_error")
 
-gs.fit(X=X_train, y=y_train.values.ravel())
+gs.fit(X=train, y=y_train.values.ravel())
 
 
 #%%
@@ -114,9 +112,9 @@ for ii in gs.best_params_.items():
     print(f"{ii[0]}: {ii[1]}")
 print()
 
-#rmse evaluation
-rmse_train = mean_squared_error(y_true=y_train.values.ravel(), y_pred=gs.predict(X_train))**0.5
-rmse_test = mean_squared_error(y_true=y_test.values.ravel(), y_pred=gs.predict(X_test))**0.5
+#rmse stability?
+rmse_train = mean_squared_error(y_true=y_train.values.ravel(), y_pred=gs.predict(train))**0.5
+rmse_test = mean_squared_error(y_true=y_test.values.ravel(), y_pred=gs.predict(test))**0.5
 print(f"\ntraining rmse: {rmse_train}")
 print(f"testing rmse: {rmse_test}")
 print(f"test/train performance ratio: {rmse_test/rmse_train}")
@@ -125,8 +123,10 @@ print(f"test/train performance ratio: {rmse_test/rmse_train}")
 #%%
 #prediction on challenge test set
 heldout = pd.read_csv("./data/test.csv")
+heldout = engineer_frame(heldout)
+
+#included as dummy for compatibility
 heldout["purchase"] = None
-heldout = engineer_frame(heldout).drop(["purchase"], axis=1)
 
 heldout["Purchase"] = gs.predict(heldout)
 heldout = heldout[["Purchase", "user_id", "product_id"]].reset_index(drop=True)

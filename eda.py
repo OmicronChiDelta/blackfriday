@@ -4,6 +4,7 @@ import sys
 import os
 import numpy as np
 from sklearn.preprocessing import OrdinalEncoder
+from sklearn.cluster import KMeans
 
 path_utils = os.path.join(os.getcwd(), "utilities")
 if path_utils not in sys.path:
@@ -104,3 +105,16 @@ _, fig, ax = median_ordered_boxplots(clean, field_group="occupation", do_sort=Tr
 _, fig, ax = median_ordered_boxplots(clean, field_group="cats_filled")
 _, fig, ax = median_ordered_boxplots(clean, field_group="ord_stay_years")
 _, fig, ax = median_ordered_boxplots(clean, field_group="ord_age")
+
+
+#%%
+#product id clustering
+for n in range(9, 10):
+    kmeans = KMeans(n_clusters=n, random_state=420).fit(clean["purchase"].values.reshape(-1, 1))
+    
+    #product IDs, ordered by median purchase
+    _, fig, ax = median_ordered_boxplots(clean, field_group="product_id", do_sort=True, minimal_vis=True)
+    
+    #overlay cluster boundaries
+    for k in kmeans.cluster_centers_:
+        ax.axhline(k[0], ls="--", c="r")
