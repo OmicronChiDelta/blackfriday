@@ -51,11 +51,25 @@ stay_years and age have barely any capacity to split up purchase
 
 
 #%%
-raw = pd.read_csv("./data/train.csv")
+train = pd.read_csv("./data/train.csv")
+test = pd.read_csv("./data/test.csv")
+
+
+#%%
+#could we actually make things ever more accurate by using the User ID? Are training users preset in test?
+#...yes. In other words, we're looking at a fixed pool of customers, each buying different products in different quantities
+# 
+personal_features = ["User_ID", "Gender", "Age", "Occupation", "Marital_Status", "City_Category", "Stay_In_Current_City_Years"]
+overlap = train[personal_features].drop_duplicates().merge(test[personal_features].drop_duplicates(), 
+                                                           how="inner", 
+                                                           on=personal_features)
+print(f"unique training users: {len(train['User_ID'].unique())}")
+print(f"unique testing users: {len(test['User_ID'].unique())}") 
+print(f"users present in both train/test datasets: {len(overlap)}")  
 
 
 #%% feature exploration/engineering
-clean = raw.copy()
+clean = train.copy()
 clean.columns = [c.lower() for c in clean.columns]
 clean.rename({"stay_in_current_city_years":"stay_years"}, axis=1, inplace=True)
 clean["cats_filled"] = 3 - clean[['product_category_1',
@@ -110,11 +124,23 @@ _, fig, ax = median_ordered_boxplots(clean, field_group="ord_age")
 #%%
 #product id clustering
 for n in range(9, 10):
-    kmeans = KMeans(n_clusters=n, random_state=420).fit(clean["purchase"].values.reshape(-1, 1))
+    
+    #cluster_data = clean["purchase"]
+    cluster_data = clean.groupby("product_id").agg({"purchase":"median"}).reset_index()["purchase"]
+    
+    kmeans = KMeans(n_clusters=n, random_state=420).fit(cluster_data.values.reshape(-1, 1))
     
     #product IDs, ordered by median purchase
-    _, fig, ax = median_ordered_boxplots(clean, field_group="product_id", do_sort=True, minimal_vis=True)
+    _, fig, ax = median_ordered_boxplots(clean, field_group="product_id", do_sort=True, minimal_vis=False)
     
     #overlay cluster boundaries
     for k in kmeans.cluster_centers_:
         ax.axhline(k[0], ls="--", c="r")
+        
+    #1 dimensional clustering, so establish cluster boundaries with min/max
+    #clean["product_group"] = kmeans.labels_
+    #group_bounds = clean.groupby("product_group").agg({"purchase":["min", "max"]}).reset_index()
+    #group_bounds.columns = ["_".join(c) for c in group_bounds.columns]
+    #group_bounds.sort_values(by="purchase_min", ascending=True, inplace=True)
+   
+    

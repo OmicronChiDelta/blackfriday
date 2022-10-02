@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import gaussian_kde
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
 
 
 #%%
@@ -48,7 +49,7 @@ def median_ordered_boxplots(df, field_group, field_vis="purchase", do_sort=False
     if minimal_vis:
         ax.plot([np.median(i) for i in box_data.values()])
     else:
-        ax.boxplot(box_data.values())
+        ax.boxplot(box_data.values(), showfliers=False)
         ax.set_xticklabels(box_data.keys(), rotation=90)
     ax.set_xlabel(field_group)
     ax.set_ylabel(field_vis)
@@ -161,3 +162,29 @@ class DropGarbage():
 
     def transform(self, X):
         return X.drop(self.fields, axis=1)
+    
+    
+class ProductCluster():
+    """
+    remove features no longer required at the end of the processing chain
+    """
+    def __init__(self, bounds):
+        self.bounds = bounds
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.merge(self.bounds, how="inner", on="product_id")
+
+    
+def cluster_products(df, k, random_state):
+    #obtain a representative purchase per id
+    cluster_bounds = df.groupby("product_id").agg({"purchase":"median"}).reset_index()
+    
+    kmeans = KMeans(n_clusters=k, random_state=random_state).fit(cluster_bounds["purchase"].values.reshape(-1, 1))
+           
+    #1 dimensional clustering, so establish cluster boundaries with min/max
+    cluster_bounds["product_group"] = kmeans.labels_
+    cluster_bounds = cluster_bounds[["product_id", "product_group"]].drop_duplicates()
+    return cluster_bounds

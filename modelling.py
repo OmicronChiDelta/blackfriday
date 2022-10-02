@@ -13,7 +13,7 @@ path_utils = os.path.join(os.getcwd(), "utilities")
 if path_utils not in sys.path:
     sys.path.append(path_utils)
     
-from utils import Regroup, CreateCatsFilled, FrequencyEncoder, MeanEncoder, DropGarbage, CustomOneHot, median_ordered_boxplots, engineer_frame
+from utils import Regroup, CreateCatsFilled, FrequencyEncoder, MeanEncoder, DropGarbage, CustomOneHot, median_ordered_boxplots, engineer_frame, cluster_products, ProductCluster
 
 # ("mean_encode_cats", MeanEncoder(fields=["gender", 
 #                                          "marital_status", 
@@ -25,6 +25,7 @@ from utils import Regroup, CreateCatsFilled, FrequencyEncoder, MeanEncoder, Drop
 n_folds = 3
 seed = 420
 test_frac = 0.25
+k_products = 9
 
 
 #%%
@@ -43,12 +44,16 @@ raw_fields = data.columns.to_list()
 test = data.sample(frac=test_frac, replace=False, random_state=seed)
 train = data.loc[~data["row_idx"].isin(test["row_idx"].values)].reset_index(drop=True)
 
+#regression targets
+y_train = train[["purchase"]].reset_index(drop=True)
+y_test = test[["purchase"]].reset_index(drop=True)
+
 
 #%%
 #verify that the eda we did is not working just because of test leakage
-plt.close("all")
+#plt.close("all")
 #_, fig, ax = median_ordered_boxplots(train, field_group="product_category_1", do_sort=True)
-_, fig, ax = median_ordered_boxplots(train, field_group="product_id", do_sort=True, minimal_vis=True)
+#_, fig, ax = median_ordered_boxplots(train, field_group="product_id", do_sort=True, minimal_vis=True)
 
 
 
@@ -59,28 +64,39 @@ low_group = [19, 20, 13, 12, 4, 18, 11, 5, 8]
 pcat1_groups = {"A":low_group, 
                 "B":[c for c in train["product_category_1"].unique() if c not in low_group]}
 
-#features
-y_train = train[["purchase"]].reset_index(drop=True)
-y_test = test[["purchase"]].reset_index(drop=True)
+#dramatically reduce the number of product_ids
+cluster_bounds = cluster_products(df=train, k=k_products, random_state=seed)
 
 
 #%%
+#small engineering dataset
+# train = pd.DataFrame(columns=["A"], data=[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+# y_train = pd.DataFrame(columns=["purchase"], data=[1, 2, 1, 1.5, 1, 2, 10, 20, 20, 20, 10, 10])
+
 #steps to transform data ready for 
-pipe = Pipeline([("cats_filled", CreateCatsFilled())
-                ,("group_categories", Regroup(field="product_category_1", 
-                                              groups=pcat1_groups))
+pipe = Pipeline([
+                ("cats_filled", CreateCatsFilled())
+                # ,("group_categories", Regroup(field="product_category_1", 
+                #                               groups=pcat1_groups))
+                ,("cluster_products", ProductCluster(bounds=cluster_bounds))
                 ,("custom_one_hot", CustomOneHot(fields=["gender",
-                                                         "marital_status",
-                                                         "city_category",
-                                                         "product_category_1"]))
-                ,("drop_garbage", DropGarbage(fields=[c.lower() for c in raw_fields]))
-                ,("regressor", RandomForestRegressor(n_estimators=50,
+                                                          "marital_status",
+                                                          "city_category",
+                                                          "product_category_1",
+                                                          "product_group"]))
+                ,("drop_garbage", DropGarbage(fields=[c.lower() for c in raw_fields] + ["product_group"]))
+                ,("regressor", RandomForestRegressor(n_estimators=500,
                                                       random_state=seed, 
                                                       n_jobs=-1))
                 ])
 
+
+#%%
 #verify steps work
-# op = pipe.fit_transform(train)
+if "regressor" not in [p[0] for p in pipe.steps]:
+    op = pipe.fit_transform(train)
+    print(len(train))
+    print(len(op))
 
 
 #%% 
